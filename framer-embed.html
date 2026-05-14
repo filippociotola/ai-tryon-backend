@@ -1,0 +1,165 @@
+<!--
+  NOTE: If you use TWO pages (upload + result), use instead:
+  - framer-upload-page.html   (page 1)
+  - framer-result-page.html    (page 2)
+
+  =============================================================================
+  FRAMER: HOW TO USE THIS FILE (single-page version)
+  =============================================================================
+  1. In Framer, add an **HTML** embed to your page (Insert → Utilities → HTML, or similar).
+  2. Paste EVERYTHING below this comment (from <section> through </script>).
+  3. Publish / preview: your site must be allowed by your backend CORS (CORS_ORIGIN in .env).
+
+  LOCALHOST NOTE:
+  A published Framer site (https://...) cannot call http://localhost:3000 from your
+  visitors' browsers — only you can, when testing on the same computer with a local
+  preview that Framer may treat differently. For real users, deploy your backend and
+  change API_URL in the script to https://your-api.com/generate
+
+  =============================================================================
+  REQUIRED ELEMENT IDs (already set in the markup below — do not rename)
+  =============================================================================
+  | ID               | Element type     | Purpose                                      |
+  |------------------|------------------|----------------------------------------------|
+  | gen-file-input   | <input type=file>| User picks the image to upload               |
+  | gen-generate     | <button>         | Starts the request to /generate              |
+  | gen-loading      | <p> or any       | Shown while the request is in progress       |
+  | gen-result       | <img>            | The returned image appears here              |
+  | gen-download     | <button>         | Downloads the image you last generated     |
+
+  If you build your own layout in Framer, recreate these five tags with the SAME ids
+  and paste only the <script> block from framer-generation.js (same logic).
+  =============================================================================
+-->
+
+<section style="font-family: system-ui, sans-serif; max-width: 28rem; margin: 0 auto;">
+  <label for="gen-file-input" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+    Choose image
+  </label>
+  <input id="gen-file-input" type="file" accept="image/*" />
+
+  <button id="gen-generate" type="button" style="margin-top: 1rem; padding: 0.5rem 1rem; cursor: pointer;">
+    Generate
+  </button>
+
+  <p id="gen-loading" style="display: none; margin-top: 1rem; color: #555;">Generating…</p>
+
+  <p id="gen-error" style="display: none; margin-top: 1rem; color: #b00020;"></p>
+
+  <img
+    id="gen-result"
+    alt="Generated result"
+    style="display: none; margin-top: 1rem; max-width: 100%; border: 1px solid #ddd; border-radius: 4px;"
+  />
+
+  <button id="gen-download" type="button" disabled style="margin-top: 1rem; padding: 0.5rem 1rem; cursor: pointer;">
+    Download image
+  </button>
+</section>
+
+<script>
+  (function () {
+    // Change this when your API is deployed (HTTPS). Local dev only works in special cases.
+    var API_URL = "http://localhost:3000/generate";
+
+    var fileInput = document.getElementById("gen-file-input");
+    var generateBtn = document.getElementById("gen-generate");
+    var loadingEl = document.getElementById("gen-loading");
+    var errorEl = document.getElementById("gen-error");
+    var resultImg = document.getElementById("gen-result");
+    var downloadBtn = document.getElementById("gen-download");
+
+    // Last image source we showed (used for download).
+    var lastImageSrc = null;
+
+    function setLoading(isLoading) {
+      loadingEl.style.display = isLoading ? "block" : "none";
+      generateBtn.disabled = isLoading;
+    }
+
+    function showError(message) {
+      errorEl.textContent = message || "";
+      errorEl.style.display = message ? "block" : "none";
+    }
+
+    /**
+     * Your backend may return any of these — we pick the first one that works.
+     */
+    function pickImageSrc(data) {
+      if (data.imageDataUrl) return data.imageDataUrl;
+      if (data.imageBase64) return "data:image/png;base64," + data.imageBase64;
+      if (data.imageUrl) return data.imageUrl;
+      return null;
+    }
+
+    generateBtn.addEventListener("click", function () {
+      showError("");
+      lastImageSrc = null;
+      downloadBtn.disabled = true;
+      resultImg.style.display = "none";
+      resultImg.removeAttribute("src");
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showError("Please choose an image first.");
+        return;
+      }
+
+      // FormData sends multipart/form-data — field name must be "image" for your backend.
+      var form = new FormData();
+      form.append("image", fileInput.files[0]);
+
+      setLoading(true);
+
+      fetch(API_URL, {
+        method: "POST",
+        body: form,
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, status: res.status, data: data };
+          });
+        })
+        .then(function (out) {
+          if (!out.ok) {
+            showError(
+              out.data && out.data.error
+                ? out.data.error
+                : "Request failed (HTTP " + out.status + ")"
+            );
+            console.log("Response:", out.data);
+            return;
+          }
+
+          var src = pickImageSrc(out.data);
+          if (!src) {
+            showError("No image in response (need imageDataUrl, imageBase64, or imageUrl).");
+            console.log("Response:", out.data);
+            return;
+          }
+
+          lastImageSrc = src;
+          resultImg.src = src;
+          resultImg.style.display = "block";
+          downloadBtn.disabled = false;
+        })
+        .catch(function (err) {
+          showError("Network error — is the server running? CORS set? (" + err.message + ")");
+        })
+        .finally(function () {
+          setLoading(false);
+        });
+    });
+
+    downloadBtn.addEventListener("click", function () {
+      if (!lastImageSrc) return;
+
+      var a = document.createElement("a");
+      a.href = lastImageSrc;
+      a.download = "generated-image.png";
+      // Needed when the link is not in the document (some browsers still work without it).
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  })();
+</script>

@@ -1,0 +1,98 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║  PAGE 2 — RESULT (paste this entire block into your Framer HTML embed)   ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+
+  REQUIRED IDs on THIS page only:
+  ┌──────────────────────────┬───────────────────────────────────────────────┐
+  │  result-image-placeholder │  <img alt="Generated" /> — image appears here  │
+  │  result-download-button   │  <button type="button">Download</button>       │
+  └──────────────────────────┴───────────────────────────────────────────────┘
+
+  OPTIONAL:
+  ┌──────────────────────────┬───────────────────────────────────────────────┐
+  │  result-empty-message     │  <p> — e.g. "Generate an image on the upload   │
+  │                           │      page first" when nothing is in storage    │
+  └──────────────────────────┴───────────────────────────────────────────────┘
+
+  Must use the SAME STORAGE_KEY string as Page 1 (already matched below).
+-->
+
+<section style="font-family: system-ui, sans-serif; max-width: 28rem; margin: 0 auto;">
+  <p id="result-empty-message" style="display: none; color: #555;">
+    No saved image yet. Go to the upload page and click Generate first.
+  </p>
+
+  <img
+    id="result-image-placeholder"
+    alt="Generated result"
+    style="display: none; max-width: 100%; border: 1px solid #ddd; border-radius: 4px;"
+  />
+
+  <button id="result-download-button" type="button" disabled style="margin-top: 1rem; padding: 0.5rem 1rem;">
+    Download image
+  </button>
+</section>
+
+<script>
+  (function () {
+    // Must match Page 1 exactly (same key = same saved image).
+    var STORAGE_KEY = "aiGen_imageSrc_v1";
+
+    var imgEl = document.getElementById("result-image-placeholder");
+    var downloadBtn = document.getElementById("result-download-button");
+    var emptyMsg = document.getElementById("result-empty-message");
+
+    // Holds the same string we stored (data URL, http URL, etc.) for download.
+    var currentSrc = null;
+
+    function showEmpty(on) {
+      if (emptyMsg) emptyMsg.style.display = on ? "block" : "none";
+    }
+
+    function applyImage(src) {
+      currentSrc = src;
+      imgEl.src = src;
+      imgEl.style.display = "block";
+      downloadBtn.disabled = false;
+      showEmpty(false);
+    }
+
+    function init() {
+      var src = null;
+      try {
+        src = localStorage.getItem(STORAGE_KEY);
+      } catch (e) {
+        console.error(e);
+      }
+
+      if (!src) {
+        imgEl.style.display = "none";
+        imgEl.removeAttribute("src");
+        downloadBtn.disabled = true;
+        showEmpty(true);
+        return;
+      }
+
+      applyImage(src);
+    }
+
+    downloadBtn.addEventListener("click", function () {
+      if (!currentSrc) return;
+
+      var a = document.createElement("a");
+      a.href = currentSrc;
+      a.download = "generated-image.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    // Run when this result page loads (after coming from Page 1 or refresh).
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  })();
+</script>

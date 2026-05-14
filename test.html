@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test /generate</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 1rem auto; padding: 0 1rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; overflow: auto; font-size: 0.85rem; }
+    .error { color: #c00; }
+    img { max-width: 100%; margin-top: 1rem; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>Test your backend</h1>
+  <p>This page sends your file to <code>http://localhost:3000/generate</code>. Start your server first (<code>npm start</code>).</p>
+
+  <!-- type="file" lets the user pick an image from their computer -->
+  <label for="image">Choose an image (required by the API)</label>
+  <input type="file" id="image" accept="image/*" />
+
+  <button type="button" id="btn">Generate</button>
+  <p id="status"></p>
+
+  <h2>JSON response</h2>
+  <pre id="jsonOut">(click Generate after choosing a file)</pre>
+
+  <h2>Returned image</h2>
+  <p id="imgNote" class="error"></p>
+  <img id="preview" alt="Result" style="display: none;" />
+
+  <script>
+    // --- Elements we will read and update ---
+    var fileInput = document.getElementById("image");
+    var btn = document.getElementById("btn");
+    var statusEl = document.getElementById("status");
+    var jsonOut = document.getElementById("jsonOut");
+    var imgNote = document.getElementById("imgNote");
+    var preview = document.getElementById("preview");
+
+    btn.onclick = function () {
+      statusEl.textContent = "";
+      imgNote.textContent = "";
+      preview.style.display = "none";
+      preview.removeAttribute("src");
+
+      // The API expects a field named "image" (see server.js / multer config).
+      if (!fileInput.files || fileInput.files.length === 0) {
+        statusEl.textContent = "Please choose an image first.";
+        statusEl.className = "error";
+        return;
+      }
+
+      statusEl.className = "";
+      statusEl.textContent = "Sending…";
+
+      // FormData is how browsers send files (multipart/form-data), like Framer will.
+      var form = new FormData();
+      form.append("image", fileInput.files[0]);
+
+      fetch("http://localhost:3000/generate", {
+        method: "POST",
+        body: form,
+      })
+        .then(function (res) {
+          // We still parse JSON even on errors (your API returns JSON with success: false).
+          return res.json().then(function (data) {
+            return { ok: res.ok, status: res.status, data: data };
+          });
+        })
+        .then(function (result) {
+          statusEl.textContent = result.ok ? "Done." : "HTTP " + result.status + " (see JSON)";
+          if (!result.ok) statusEl.className = "error";
+
+          // Pretty-print JSON so it is easy to read.
+          jsonOut.textContent = JSON.stringify(result.data, null, 2);
+
+          // Show image only when the server sent a usable URL (your requirement).
+          if (result.data && result.data.imageUrl) {
+            preview.src = result.data.imageUrl;
+            preview.style.display = "block";
+            imgNote.textContent = "";
+          } else {
+            imgNote.textContent =
+              "No imageUrl in the response (your placeholder API may use imageDataUrl or imageBase64 in the JSON instead).";
+          }
+        })
+        .catch(function (err) {
+          statusEl.textContent = "Network error — is the server running on port 3000?";
+          statusEl.className = "error";
+          jsonOut.textContent = String(err);
+        });
+    };
+  </script>
+</body>
+</html>

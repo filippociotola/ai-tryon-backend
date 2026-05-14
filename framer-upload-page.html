@@ -1,0 +1,126 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║  PAGE 1 — UPLOAD (paste this entire block into your Framer HTML embed)   ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+
+  REQUIRED IDs on THIS page only:
+  ┌─────────────────────────┬────────────────────────────────────────────────┐
+  │  upload-file-input      │  <input type="file" accept="image/*" />        │
+  │  upload-generate-button │  <button type="button">Generate</button>       │
+  └─────────────────────────┴────────────────────────────────────────────────┘
+
+  OPTIONAL (recommended):
+  ┌─────────────────────────┬────────────────────────────────────────────────┐
+  │  upload-loading-text    │  <p> — shown while the request runs              │
+  │  upload-error-text      │  <p> — error messages                            │
+  └─────────────────────────┴────────────────────────────────────────────────┘
+
+  BEFORE PUBLISHING: set RESULT_PAGE_PATH below to match your Page 2 URL in Framer
+  (the slug you see in the address bar, e.g. "/result" or "/page-2").
+-->
+
+<section style="font-family: system-ui, sans-serif; max-width: 28rem; margin: 0 auto;">
+  <label for="upload-file-input" style="display: block; font-weight: 600;">Choose image</label>
+  <input id="upload-file-input" type="file" accept="image/*" style="margin-top: 0.5rem;" />
+
+  <button id="upload-generate-button" type="button" style="margin-top: 1rem; padding: 0.5rem 1rem;">
+    Generate
+  </button>
+
+  <p id="upload-loading-text" style="display: none; margin-top: 1rem; color: #555;">Generating…</p>
+  <p id="upload-error-text" style="display: none; margin-top: 1rem; color: #b00020;"></p>
+</section>
+
+<script>
+  (function () {
+    // Your backend (use HTTPS + your real domain when the site is published).
+    var API_URL = "http://localhost:3000/generate";
+
+    // ▼▼▼ CHANGE THIS to your Framer result page path (starts with /) ▼▼▼
+    var RESULT_PAGE_PATH = "/result";
+
+    // Key used in the browser's localStorage so Page 2 can read the same value.
+    var STORAGE_KEY = "aiGen_imageSrc_v1";
+
+    var fileInput = document.getElementById("upload-file-input");
+    var generateBtn = document.getElementById("upload-generate-button");
+    var loadingEl = document.getElementById("upload-loading-text");
+    var errorEl = document.getElementById("upload-error-text");
+
+    function setLoading(on) {
+      if (loadingEl) loadingEl.style.display = on ? "block" : "none";
+      generateBtn.disabled = on;
+    }
+
+    function showError(msg) {
+      if (!errorEl) {
+        if (msg) alert(msg);
+        return;
+      }
+      errorEl.textContent = msg || "";
+      errorEl.style.display = msg ? "block" : "none";
+    }
+
+    /** Pick the first image field your API returns (same rules as your backend). */
+    function pickImageSrc(data) {
+      if (data.imageDataUrl) return data.imageDataUrl;
+      if (data.imageBase64) return "data:image/png;base64," + data.imageBase64;
+      if (data.imageUrl) return data.imageUrl;
+      return null;
+    }
+
+    generateBtn.addEventListener("click", function () {
+      showError("");
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showError("Please choose an image first.");
+        return;
+      }
+
+      var form = new FormData();
+      // Backend expects the file field to be named exactly "image".
+      form.append("image", fileInput.files[0]);
+
+      setLoading(true);
+
+      fetch(API_URL, { method: "POST", body: form })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, status: res.status, data: data };
+          });
+        })
+        .then(function (out) {
+          if (!out.ok) {
+            showError(
+              (out.data && out.data.error) ? out.data.error : ("Request failed (HTTP " + out.status + ")")
+            );
+            return;
+          }
+
+          var src = pickImageSrc(out.data);
+          if (!src) {
+            showError("No image in response. Need imageDataUrl, imageBase64, or imageUrl.");
+            console.log("Full response:", out.data);
+            return;
+          }
+
+          try {
+            // Save for Page 2 (data URLs can be long; very huge images may hit browser limits).
+            localStorage.setItem(STORAGE_KEY, src);
+          } catch (e) {
+            showError("Could not save image (too large for storage?). Try a smaller photo.");
+            console.error(e);
+            return;
+          }
+
+          // Go to your result page on the same website.
+          window.location.assign(RESULT_PAGE_PATH);
+        })
+        .catch(function (err) {
+          showError("Network error — is the server running? CORS OK? " + err.message);
+        })
+        .finally(function () {
+          setLoading(false);
+        });
+    });
+  })();
+</script>
