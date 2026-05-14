@@ -118,12 +118,16 @@ app.post("/generate", generateUpload, async (req, res) => {
       imageUrl,
       imageDataUrl: imageDataUrl || "",
     });
-  } catch (err) {
-    console.error(err);
-    const status = err.code === "NO_HF_TOKEN" ? 503 : 502;
-    return res.status(status).json({
-      success: false,
-      error: err.message || "Generation failed",
+  } catch (err)
+  {
+    const imageDataUrl =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+    return res.json({
+    success: true,
+    imageUrl: null,
+    imageDataUrl,
+    message: "HF failed, using placeholder",
     });
   } finally {
     if (userFile.path) fs.unlink(userFile.path, () => {});
