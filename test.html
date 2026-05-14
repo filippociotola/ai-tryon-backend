@@ -77,14 +77,16 @@
           // Pretty-print JSON so it is easy to read.
           jsonOut.textContent = JSON.stringify(result.data, null, 2);
 
-          // Show image only when the server sent a usable URL (your requirement).
-          if (result.data && result.data.imageUrl) {
-            preview.src = result.data.imageUrl;
+          var src =
+            (result.data && result.data.imageDataUrl) ||
+            (result.data && result.data.imageUrl) ||
+            null;
+          if (src) {
+            preview.src = src;
             preview.style.display = "block";
             imgNote.textContent = "";
           } else {
-            imgNote.textContent =
-              "No imageUrl in the response (your placeholder API may use imageDataUrl or imageBase64 in the JSON instead).";
+            imgNote.textContent = "No imageUrl or imageDataUrl in the response.";
           }
         })
         .catch(function (err) {

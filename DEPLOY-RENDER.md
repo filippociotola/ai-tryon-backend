@@ -30,7 +30,7 @@ Render installs dependencies from **`package.json`** and starts your app with **
 | File | Why |
 |------|-----|
 | **`render.yaml`** | Optional “Blueprint” so Render knows build/start commands. You can ignore it and type the same settings in the dashboard. |
-| **`.env.example`** | Documents variable names (`CORS_ORIGIN`, `AI_API_KEY`) for you and teammates. |
+| **`.env.example`** | Documents variable names (`CORS_ORIGIN`, `REPLICATE_API_TOKEN`) for you and teammates. |
 | **`README.md`**, **`test.html`**, **`framer-*.html`**, **`framer-generation.js`** | Fine to commit; Render does not need them to run the server. |
 
 ### After deploy, you set secrets only in Render
@@ -38,7 +38,7 @@ Render installs dependencies from **`package.json`** and starts your app with **
 In the Render dashboard → your Web Service → **Environment**, add:
 
 - **`CORS_ORIGIN`** — your published Framer URL, e.g. `https://yoursite.framer.website` (no trailing slash).
-- **`AI_API_KEY`** — when you use a real AI API (optional for the placeholder server).
+- **`REPLICATE_API_TOKEN`** — required for `/generate` (create at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)).
 
 Render automatically sets **`PORT`**; your code already uses it.
 
@@ -194,7 +194,7 @@ If the build fails, read the red error in the logs (often a missing `package.jso
 | Key | Value |
 |-----|--------|
 | `CORS_ORIGIN` | Your live Framer site origin only, e.g. `https://yoursite.framer.website` (must match the browser address exactly: `https`, no path, usually no trailing slash). |
-| `AI_API_KEY` | Optional until you use a real API. |
+| `REPLICATE_API_TOKEN` | Required for image generation (`r8_...` from Replicate). |
 
 3. Click **Save Changes**. Render will **redeploy** automatically.
 

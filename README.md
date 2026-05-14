@@ -1,6 +1,6 @@
 # AI image generation backend
 
-Simple **Node.js + Express** API for an AI image site. It accepts a user image plus optional clothing image or text prompt, and returns a **placeholder** PNG (base64) until you connect a real AI provider.
+Simple **Node.js + Express** API for an AI image site. It accepts a user image plus optional clothing image or text prompt, and runs **Replicate** models to return a real **`imageUrl`** and **`imageDataUrl`**.
 
 ## Prerequisites
 
@@ -72,10 +72,10 @@ curl.exe -X POST http://localhost:3000/generate -F "image=@C:\path\to\photo.jpg"
 | Variable | Purpose |
 |----------|---------|
 | `PORT` | Server port (default `3000`) |
-| `AI_API_KEY` | Reserved for your future AI API key |
+| `REPLICATE_API_TOKEN` | [Replicate](https://replicate.com) API token (`r8_...`) — required for `/generate` |
 | `CORS_ORIGIN` | Your Framer site origin (HTTPS URL), so the browser allows the request |
 
 ## Notes
 
 - Uploaded files are saved under the `uploads/` folder for debugging.
-- Replace the placeholder logic in `server.js` with calls to your chosen AI API when you are ready.
+- Models: **FLUX.1 Kontext Pro** when only a person image is sent; **IDM-VTON** when a `clothing` image is also sent. See `replicateGenerate.js`.

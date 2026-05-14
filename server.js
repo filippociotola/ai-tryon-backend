@@ -1,9 +1,8 @@
 /**
- * AI Image Generation — simple Express backend
+ * AI Image Generation — Express backend
  *
- * This file starts a web server and exposes POST /generate.
- * For now it returns a placeholder image (base64) so you can wire Framer
- * before connecting a real AI provider.
+ * POST /generate uses Replicate (see replicateGenerate.js).
+ * Set REPLICATE_API_TOKEN in .env or on Render.
  */
 
 // Load variables from .env into process.env (must run early).
@@ -14,6 +13,7 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const { runWithReplicate } = require("./replicateGenerate");
 
 const app = express();
 
@@ -68,13 +68,6 @@ const generateUpload = upload.fields([
   { name: "clothing", maxCount: 1 },
 ]);
 
-/**
- * Tiny valid PNG (1×1 pixel) as base64 — safe placeholder until you call a real API.
- * You can replace the generation logic later and return a real URL or base64 from your provider.
- */
-const PLACEHOLDER_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
-
 // Health check so you know the server is running.
 app.get("/", (_req, res) => {
   res.json({ ok: true, message: "AI image backend is running. POST files to /generate" });
@@ -84,61 +77,51 @@ app.get("/", (_req, res) => {
  * POST /generate
  * Content-Type: multipart/form-data
  * Fields: image (file, required), clothing (file, optional), prompt (text, optional)
+ *
+ * Success JSON shape (always):
+ *   { "success": true, "imageUrl": "...", "imageDataUrl": "..." }
+ * imageDataUrl may be "" if the server could not download the output to build a data URL
+ * (imageUrl will still be a working Replicate delivery URL).
  */
-app.post("/generate", generateUpload, (req, res) => {
+app.post("/generate", generateUpload, async (req, res) => {
+  const files = req.files || {};
+  const userFile = files.image && files.image[0];
+  const clothingFile = files.clothing && files.clothing[0];
+
+  if (!userFile) {
+    if (clothingFile && clothingFile.path) {
+      fs.unlink(clothingFile.path, () => {});
+    }
+    return res.status(400).json({
+      success: false,
+      error: "Missing required file field: image",
+    });
+  }
+
+  const prompt = req.body && req.body.prompt ? String(req.body.prompt).trim() : "";
+
   try {
-    // Read optional API key pattern (you will use this when integrating a real service).
-    const apiKey = process.env.AI_API_KEY;
-    if (!apiKey || apiKey === "your_api_key_here") {
-      // We do not fail the request — placeholder still works — but we note it in the response.
-      // Remove this warning once you set a real key for your provider.
-    }
-
-    const files = req.files || {};
-    const userFile = files.image && files.image[0];
-    if (!userFile) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required file field: image",
-      });
-    }
-
-    const clothingFile = files.clothing && files.clothing[0];
-    const prompt = (req.body && req.body.prompt) ? String(req.body.prompt).trim() : "";
-
-    // Here you would call your AI API with:
-    // - path to user image: userFile.path
-    // - optional clothing: clothingFile?.path
-    // - optional prompt
-    // - apiKey
-    //
-    // For now we only acknowledge what we received and return a placeholder.
-
-    const placeholderDataUrl = `data:image/png;base64,${PLACEHOLDER_PNG_BASE64}`;
+    const { imageUrl, imageDataUrl } = await runWithReplicate({
+      humanImagePath: userFile.path,
+      clothingImagePath: clothingFile ? clothingFile.path : null,
+      prompt,
+    });
 
     return res.json({
       success: true,
-      message: "Placeholder response. Replace server logic with your AI provider.",
-      received: {
-        userImage: userFile.originalname,
-        userImageSavedPath: userFile.path,
-        clothingImage: clothingFile ? clothingFile.originalname : null,
-        clothingImageSavedPath: clothingFile ? clothingFile.path : null,
-        prompt: prompt || null,
-        apiKeyConfigured: Boolean(apiKey && apiKey !== "your_api_key_here"),
-      },
-      // What your Framer front end can use today:
-      imageBase64: PLACEHOLDER_PNG_BASE64,
-      imageDataUrl: placeholderDataUrl,
-      // Example fake URL pattern — swap for a real CDN or signed URL from your provider later.
-      imageUrl: null,
+      imageUrl,
+      imageDataUrl: imageDataUrl || "",
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({
+    const status = err.code === "NO_TOKEN" ? 503 : 502;
+    return res.status(status).json({
       success: false,
-      error: "Server error while processing upload",
+      error: err.message || "Generation failed",
     });
+  } finally {
+    if (userFile.path) fs.unlink(userFile.path, () => {});
+    if (clothingFile && clothingFile.path) fs.unlink(clothingFile.path, () => {});
   }
 });
 

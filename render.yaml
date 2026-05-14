@@ -2,8 +2,8 @@
 # New Blueprint: https://dashboard.render.com/select-repo?type=blueprint
 #
 # After first deploy, open your Web Service → Environment and set:
-#   CORS_ORIGIN = your live Framer site (https://....)
-#   AI_API_KEY    = optional, when you connect a real AI API
+#   CORS_ORIGIN           = your live Framer site (https://....)
+#   REPLICATE_API_TOKEN   = from https://replicate.com/account/api-tokens
 
 services:
   - type: web
@@ -19,5 +19,5 @@ services:
         value: "20"
       - key: CORS_ORIGIN
         sync: false
-      - key: AI_API_KEY
+      - key: REPLICATE_API_TOKEN
         sync: false
