@@ -2,8 +2,8 @@
 # New Blueprint: https://dashboard.render.com/select-repo?type=blueprint
 #
 # After first deploy, open your Web Service → Environment and set:
-#   CORS_ORIGIN           = your live Framer site (https://....)
-#   REPLICATE_API_TOKEN   = from https://replicate.com/account/api-tokens
+#   CORS_ORIGIN = your live Framer site (https://....)
+#   HF_TOKEN    = from https://huggingface.co/settings/tokens
 
 services:
   - type: web
@@ -19,5 +19,5 @@ services:
         value: "20"
       - key: CORS_ORIGIN
         sync: false
-      - key: REPLICATE_API_TOKEN
+      - key: HF_TOKEN
         sync: false

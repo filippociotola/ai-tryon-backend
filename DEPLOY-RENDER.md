@@ -15,6 +15,7 @@ Render installs dependencies from **`package.json`** and starts your app with **
 | **`package.json`** | Lists dependencies and the `start` script. |
 | **`package-lock.json`** | Locks dependency versions so Render installs the same packages every time. |
 | **`server.js`** | Your Express app. |
+| **`huggingfaceGenerate.js`** | Hugging Face image-to-image call used by `/generate`. |
 | **`.gitignore`** | Tells Git to **not** upload `node_modules`, `.env`, `uploads`, etc. |
 
 ### Must **not** be on GitHub (secrets and junk)
@@ -30,7 +31,7 @@ Render installs dependencies from **`package.json`** and starts your app with **
 | File | Why |
 |------|-----|
 | **`render.yaml`** | Optional “Blueprint” so Render knows build/start commands. You can ignore it and type the same settings in the dashboard. |
-| **`.env.example`** | Documents variable names (`CORS_ORIGIN`, `REPLICATE_API_TOKEN`) for you and teammates. |
+| **`.env.example`** | Documents variable names (`CORS_ORIGIN`, `HF_TOKEN`) for you and teammates. |
 | **`README.md`**, **`test.html`**, **`framer-*.html`**, **`framer-generation.js`** | Fine to commit; Render does not need them to run the server. |
 
 ### After deploy, you set secrets only in Render
@@ -38,7 +39,7 @@ Render installs dependencies from **`package.json`** and starts your app with **
 In the Render dashboard → your Web Service → **Environment**, add:
 
 - **`CORS_ORIGIN`** — your published Framer URL, e.g. `https://yoursite.framer.website` (no trailing slash).
-- **`REPLICATE_API_TOKEN`** — required for `/generate` (create at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)).
+- **`HF_TOKEN`** — required for `/generate` (create at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)).
 
 Render automatically sets **`PORT`**; your code already uses it.
 
@@ -97,7 +98,7 @@ If `node_modules` appears as **untracked** or **staged**, do **not** add it. Onl
 ### 2.7 Stage and commit your code
 
 ```powershell
-git add package.json package-lock.json server.js .gitignore .env.example render.yaml
+git add package.json package-lock.json server.js huggingfaceGenerate.js .gitignore .env.example render.yaml
 ```
 
 Optional: add other safe files (README, Framer snippets, test.html):
@@ -194,7 +195,7 @@ If the build fails, read the red error in the logs (often a missing `package.jso
 | Key | Value |
 |-----|--------|
 | `CORS_ORIGIN` | Your live Framer site origin only, e.g. `https://yoursite.framer.website` (must match the browser address exactly: `https`, no path, usually no trailing slash). |
-| `REPLICATE_API_TOKEN` | Required for image generation (`r8_...` from Replicate). |
+| `HF_TOKEN` | Required for image generation (Hugging Face token, usually starts with `hf_`). |
 
 3. Click **Save Changes**. Render will **redeploy** automatically.
 
@@ -260,9 +261,9 @@ After changing env vars on Render, wait for the redeploy to finish, then test ag
 
 ## Checklist
 
-- [ ] GitHub repo contains `package.json`, `package-lock.json`, `server.js`, `.gitignore` — no `node_modules`, no `.env`.
+- [ ] GitHub repo contains `package.json`, `package-lock.json`, `server.js`, `huggingfaceGenerate.js`, `.gitignore` — no `node_modules`, no `.env`.
 - [ ] Render Web Service: **Build** `npm install`, **Start** `npm start`.
-- [ ] Render **Environment**: `CORS_ORIGIN` = your Framer `https://...` origin.
+- [ ] Render **Environment**: `CORS_ORIGIN` = your Framer `https://...` origin; `HF_TOKEN` set for `/generate`.
 - [ ] Public URL: `https://....onrender.com/generate`.
 - [ ] Framer: `API_URL` (or equivalent) uses that HTTPS URL, not localhost.
 

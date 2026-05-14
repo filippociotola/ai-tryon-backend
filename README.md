@@ -1,6 +1,6 @@
 # AI image generation backend
 
-Simple **Node.js + Express** API for an AI image site. It accepts a user image plus optional clothing image or text prompt, and runs **Replicate** models to return a real **`imageUrl`** and **`imageDataUrl`**.
+Simple **Node.js + Express** API for an AI image site. It accepts a user image plus optional text prompt, calls the **Hugging Face Inference API** (image-to-image), and returns **`imageUrl`** and **`imageDataUrl`**.
 
 ## Prerequisites
 
@@ -72,10 +72,11 @@ curl.exe -X POST http://localhost:3000/generate -F "image=@C:\path\to\photo.jpg"
 | Variable | Purpose |
 |----------|---------|
 | `PORT` | Server port (default `3000`) |
-| `REPLICATE_API_TOKEN` | [Replicate](https://replicate.com) API token (`r8_...`) — required for `/generate` |
+| `HF_TOKEN` | [Hugging Face](https://huggingface.co) access token (`hf_...`) — required for `/generate` |
+| `HF_IMAGE2IMAGE_MODEL` | Optional — overrides default `timbrooks/instruct-pix2pix` |
 | `CORS_ORIGIN` | Your Framer site origin (HTTPS URL), so the browser allows the request |
 
 ## Notes
 
 - Uploaded files are saved under the `uploads/` folder for debugging.
-- Models: **Stable Diffusion img2img** when only a person image is sent; **IDM-VTON** when a `clothing` image is also sent. See `replicateGenerate.js`.
+- `/generate` uses the Hugging Face Inference API (`provider: hf-inference` only). See `huggingfaceGenerate.js`. Optional `clothing` upload is ignored.

@@ -1,8 +1,8 @@
 /**
  * AI Image Generation — Express backend
  *
- * POST /generate uses Replicate (see replicateGenerate.js).
- * Set REPLICATE_API_TOKEN in .env or on Render.
+ * POST /generate uses Hugging Face Inference API only (see huggingfaceGenerate.js).
+ * Set HF_TOKEN in .env or on Render.
  */
 
 // Load variables from .env into process.env (must run early).
@@ -13,7 +13,7 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { runWithReplicate } = require("./replicateGenerate");
+const { runWithHuggingFace } = require("./huggingfaceGenerate");
 
 const app = express();
 
@@ -61,8 +61,8 @@ const upload = multer({
 
 // Field names your Framer (or other) client should send:
 // - image (required): the user's photo
-// - clothing (optional): reference clothing image
-// - prompt (optional): text description
+// - clothing (optional): not used by HF path (ignored)
+// - prompt (optional): text description / edit instruction
 const generateUpload = upload.fields([
   { name: "image", maxCount: 1 },
   { name: "clothing", maxCount: 1 },
@@ -76,12 +76,10 @@ app.get("/", (_req, res) => {
 /**
  * POST /generate
  * Content-Type: multipart/form-data
- * Fields: image (file, required), clothing (file, optional), prompt (text, optional)
+ * Fields: image (file, required), clothing (file, optional, ignored), prompt (text, optional)
  *
- * Success JSON shape (always):
+ * Success JSON shape:
  *   { "success": true, "imageUrl": "...", "imageDataUrl": "..." }
- * imageDataUrl may be "" if the server could not download the output to build a data URL
- * (imageUrl will still be a working Replicate delivery URL).
  */
 app.post("/generate", generateUpload, async (req, res) => {
   const files = req.files || {};
@@ -98,12 +96,20 @@ app.post("/generate", generateUpload, async (req, res) => {
     });
   }
 
+  if (!process.env.HF_TOKEN || !String(process.env.HF_TOKEN).trim()) {
+    if (userFile.path) fs.unlink(userFile.path, () => {});
+    if (clothingFile && clothingFile.path) fs.unlink(clothingFile.path, () => {});
+    return res.status(503).json({
+      success: false,
+      error: "Missing HF_TOKEN",
+    });
+  }
+
   const prompt = req.body && req.body.prompt ? String(req.body.prompt).trim() : "";
 
   try {
-    const { imageUrl, imageDataUrl } = await runWithReplicate({
-      humanImagePath: userFile.path,
-      clothingImagePath: clothingFile ? clothingFile.path : null,
+    const { imageUrl, imageDataUrl } = await runWithHuggingFace({
+      imagePath: userFile.path,
       prompt,
     });
 
@@ -114,7 +120,7 @@ app.post("/generate", generateUpload, async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    const status = err.code === "NO_TOKEN" ? 503 : 502;
+    const status = err.code === "NO_HF_TOKEN" ? 503 : 502;
     return res.status(status).json({
       success: false,
       error: err.message || "Generation failed",
