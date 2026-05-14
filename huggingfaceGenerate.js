@@ -11,7 +11,7 @@ const fs = require("fs");
 const { InferenceClient } = require("@huggingface/inference");
 
 /** Free / common instruct-based image edit model (image + text → image). */
-const DEFAULT_MODEL = "timbrooks/instruct-pix2pix";
+const DEFAULT_MODEL = "lllyasviel/sd-controlnet-canny";
 
 const DEFAULT_PROMPT =
   "Make this a polished, high-quality photograph with natural color and sharp detail.";
