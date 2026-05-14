@@ -1,7 +1,7 @@
 /**
  * Replicate image generation (used by POST /generate).
  *
- * - No clothing file: black-forest-labs/flux-kontext-pro (edit image with a text prompt).
+ * - No clothing file: stability-ai/stable-diffusion-img2img (image + prompt → new image URL).
  * - With clothing file: cuuupid/idm-vton (virtual try-on; non-commercial license on Replicate).
  *
  * Auth: set REPLICATE_API_TOKEN (see .env.example). AI_API_KEY is still read as a fallback.
@@ -15,6 +15,41 @@ const Replicate = require("replicate");
 /** Official token name; `AI_API_KEY` kept for older .env files. */
 function getReplicateToken() {
   return process.env.REPLICATE_API_TOKEN || process.env.AI_API_KEY;
+}
+
+/**
+ * Log the exact HTTP body Replicate returns on failure (e.g. 422 validation).
+ * @param {unknown} err
+ */
+async function logReplicateApiError(err) {
+  console.error("[Replicate] request failed:", err && err.name, err && err.message);
+
+  const res = err && err.response;
+  if (res && typeof res.clone === "function" && typeof res.text === "function") {
+    try {
+      const raw = await res.clone().text();
+      console.error("[Replicate] error response body (exact):", raw);
+      try {
+        const parsed = JSON.parse(raw);
+        console.error("[Replicate] error response body (parsed JSON):", JSON.stringify(parsed, null, 2));
+      } catch {
+        /* not JSON */
+      }
+    } catch (readErr) {
+      console.error("[Replicate] could not read error response body:", readErr && readErr.message);
+    }
+  } else {
+    console.error("[Replicate] non-HTTP error or missing response:", err);
+  }
+}
+
+async function replicateRunLogged(replicate, model, input) {
+  try {
+    return await replicate.run(model, { input });
+  } catch (err) {
+    await logReplicateApiError(err);
+    throw err;
+  }
 }
 
 /**
@@ -46,11 +81,12 @@ async function urlToDataUrl(imageUrl) {
   return `data:${mime};base64,${buf.toString("base64")}`;
 }
 
-const FLUX_MODEL = "black-forest-labs/flux-kontext-pro";
+/** Simple img2img: file stream `image` + string `prompt` (see Replicate model API). */
+const IMG2IMG_MODEL = "stability-ai/stable-diffusion-img2img";
 const VTON_MODEL = "cuuupid/idm-vton";
 
-const DEFAULT_FLUX_PROMPT =
-  "High-end fashion editorial photo, soft studio light, natural skin, keep the person's identity and pose.";
+const DEFAULT_IMG2IMG_PROMPT =
+  "photographic portrait, natural light, high detail, sharp focus, same person and pose";
 
 /**
  * @param {object} opts
@@ -74,23 +110,20 @@ async function runWithReplicate(opts) {
 
   let output;
   if (opts.clothingImagePath) {
-    // Virtual try-on: person + garment images (see Replicate model page for options).
-    output = await replicate.run(VTON_MODEL, {
-      input: {
-        human_img: fs.createReadStream(opts.humanImagePath),
-        garm_img: fs.createReadStream(opts.clothingImagePath),
-        garment_des: prompt || "Garment from reference image",
-        category: "upper_body",
-        crop: true,
-      },
+    output = await replicateRunLogged(replicate, VTON_MODEL, {
+      human_img: fs.createReadStream(opts.humanImagePath),
+      garm_img: fs.createReadStream(opts.clothingImagePath),
+      garment_des: prompt || "Garment from reference image",
+      category: "upper_body",
+      crop: true,
     });
   } else {
-    // Single image + text edit (no garment file).
-    output = await replicate.run(FLUX_MODEL, {
-      input: {
-        input_image: fs.createReadStream(opts.humanImagePath),
-        prompt: prompt || DEFAULT_FLUX_PROMPT,
-      },
+    output = await replicateRunLogged(replicate, IMG2IMG_MODEL, {
+      image: fs.createReadStream(opts.humanImagePath),
+      prompt: prompt || DEFAULT_IMG2IMG_PROMPT,
+      prompt_strength: 0.75,
+      num_inference_steps: 25,
+      guidance_scale: 7.5,
     });
   }
 

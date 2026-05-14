@@ -78,4 +78,4 @@ curl.exe -X POST http://localhost:3000/generate -F "image=@C:\path\to\photo.jpg"
 ## Notes
 
 - Uploaded files are saved under the `uploads/` folder for debugging.
-- Models: **FLUX.1 Kontext Pro** when only a person image is sent; **IDM-VTON** when a `clothing` image is also sent. See `replicateGenerate.js`.
+- Models: **Stable Diffusion img2img** when only a person image is sent; **IDM-VTON** when a `clothing` image is also sent. See `replicateGenerate.js`.
