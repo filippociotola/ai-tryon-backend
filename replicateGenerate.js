@@ -1,7 +1,7 @@
 /**
  * Replicate image generation (used by POST /generate).
  *
- * - No clothing file: stability-ai/stable-diffusion-img2img (image + prompt → new image URL).
+ * - No clothing file: stability-ai/stable-diffusion-img2img:15a3689ee13b0d2616e98820eca31d4c3abcd36672df6afce5cb6feb1d66087d (pinned; avoids 404).
  * - With clothing file: cuuupid/idm-vton (virtual try-on; non-commercial license on Replicate).
  *
  * Auth: set REPLICATE_API_TOKEN (see .env.example). AI_API_KEY is still read as a fallback.
@@ -81,8 +81,9 @@ async function urlToDataUrl(imageUrl) {
   return `data:${mime};base64,${buf.toString("base64")}`;
 }
 
-/** Simple img2img: file stream `image` + string `prompt` (see Replicate model API). */
-const IMG2IMG_MODEL = "stability-ai/stable-diffusion-img2img";
+/** Pinned model (owner/name:version_id). Inputs: `image` stream + `prompt` string. */
+const IMG2IMG_MODEL =
+  "stability-ai/stable-diffusion-img2img:15a3689ee13b0d2616e98820eca31d4c3abcd36672df6afce5cb6feb1d66087d";
 const VTON_MODEL = "cuuupid/idm-vton";
 
 const DEFAULT_IMG2IMG_PROMPT =
